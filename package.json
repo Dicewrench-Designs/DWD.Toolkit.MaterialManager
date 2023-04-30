@@ -1,0 +1,22 @@
+{
+    "name": "com.dicewrenchdesigns.dwdmaterialmanager",
+    "version": "1.0.0",
+    "displayName": "DWD MaterialManager",
+    "description": "ScriptableObject system for maintaining and modifying Material Properties",
+    "unity": "2019.1",
+    "documentationUrl": "https://www.dicewrenchdesigns.com",
+    "changelogUrl": "https://www.dicewrenchdesigns.com",
+    "licensesUrl": "https://www.dicewrenchdesigns.com",
+    "keywords": [
+        "Material",
+        "Manager",
+        "Mat",
+        "DWD",
+        "Dicewrench"
+    ],
+    "author": {
+        "name": "Dicewrench Designs LLC",
+        "email": "allen@dicewrenchdesigns.com",
+        "url": "https://www.dicewrenchdesigns.com"
+    }
+}

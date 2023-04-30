@@ -1,0 +1,18 @@
+{
+    "name": "DWD.MaterialManager.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:535c2103ec3261c47b7e8f9596fce5e0"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

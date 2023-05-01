@@ -12,11 +12,9 @@ namespace DWD.MaterialManager
     /// </summary>
     public abstract class BaseManageableMaterialProperty : ScriptableObject, IManageableProperty
     {
-        //serialize the shader ID for our property
+        //cache the shader ID for our property
         //so things are faster when we actually set 
         //stuff...
-        [SerializeField]
-        [HideInInspector]
         protected int _materialPropertyID = -1;
         public int MaterialPropertyID
         {
@@ -84,7 +82,7 @@ namespace DWD.MaterialManager
         {
             get
             {
-                    return Shader.PropertyToID(_materialPropertyName);
+                return Shader.PropertyToID(_materialPropertyName);
             }
         }
 

@@ -7,146 +7,149 @@ using UnityEngine;
 
 namespace DWD.MaterialManager
 {
-    /// <summary>
-    /// Base ScriptableObject for ManageableMaterialProperties
-    /// </summary>
-    public abstract class BaseManageableMaterialProperty : ScriptableObject, IManageableProperty
-    {
-        //cache the shader ID for our property
-        //so things are faster when we actually set 
-        //stuff...
-        protected int _materialPropertyID = -1;
-        public int MaterialPropertyID
-        {
-            get
+   /// <summary>
+   /// Base ScriptableObject for ManageableMaterialProperties
+   /// </summary>
+   public abstract class BaseManageableMaterialProperty : ScriptableObject, IManageableProperty
+   {
+      //cache the shader ID for our property
+      //so things are faster when we actually set 
+      //stuff...
+      protected int _materialPropertyID = -1;
+      public int MaterialPropertyID
+      {
+         get
+         {
+            if (_materialPropertyID == -1)
+               _materialPropertyID = Shader.PropertyToID(_materialPropertyName);
+            return _materialPropertyID;
+         }
+      }
+
+      //for dev facing data use string name
+      [SerializeField]
+      [HideInInspector]
+      protected string _materialPropertyName = "_SomeProperty";
+        public string MaterialPropertyName { get { return _materialPropertyName; } }
+
+      public void OnPropertyNameChanged()
+      {
+         _materialPropertyID = Shader.PropertyToID(_materialPropertyName);
+      }
+
+      public virtual void ApplyPropertyToMaterial(Material m) { return; }
+
+      public virtual void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block) { return; }
+
+      public virtual MaterialPropertyType GetMaterialPropertyType() { return MaterialPropertyType.Color; }
+
+      public virtual void Reset() { return; }
+   }
+
+   /// <summary>
+   /// "Open" version of <see cref="BaseManageableMaterialProperty"/>
+   /// where developers can set MaterialPropertyName.
+   /// </summary>
+   public abstract class OpenManageableMaterialProperty : BaseManageableMaterialProperty
+   {
+      public new string MaterialPropertyName
+      {
+         get { return _materialPropertyName; }
+         set
+         {
+            if (_materialPropertyName != value)
             {
-                if (_materialPropertyID == -1)
-                    _materialPropertyID = Shader.PropertyToID(_materialPropertyName);
-                return _materialPropertyID;
+               _materialPropertyName = value;
+               //when we change value update our shader id
+               OnPropertyNameChanged();
             }
-        }
+         }
+      }
+   }
 
-        //for dev facing data use string name
-        [SerializeField]
-        [HideInInspector]
-        protected string _materialPropertyName = "_SomeProperty";
+   /// <summary>
+   /// "Sealed" version of <see cref="IManageableProperty"/>
+   /// where MaterialPropertyName is only set via the Constructor.
+   /// Because this is explicitly inlined we don't need to inherit
+   /// <see cref="ScriptableObject"/>.
+   /// </summary>
+   [System.Serializable]
+   public abstract class SealedManageableMaterialProperty : IManageableProperty
+   {
+      public SealedManageableMaterialProperty(string propertyName)
+      {
+         _materialPropertyName = propertyName;
+      }
 
-        public void OnPropertyNameChanged()
-        {
-            _materialPropertyID = Shader.PropertyToID(_materialPropertyName);
-        }
+      public int MaterialPropertyID
+      {
+         get
+         {
+            return Shader.PropertyToID(_materialPropertyName);
+         }
+      }
 
-        public virtual void ApplyPropertyToMaterial(Material m) { return; }
+      public int ResetID()
+      {
+         return MaterialPropertyID;
+      }
 
-        public virtual void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block) { return; }
+      //for dev facing data use string name
+      [SerializeField]
+      [HideInInspector]
+      protected string _materialPropertyName = "_SomeProperty";
 
-        public virtual MaterialPropertyType GetMaterialPropertyType() { return MaterialPropertyType.Color; }
-    }
+      public virtual void ApplyPropertyToMaterial(Material m) { return; }
 
-    /// <summary>
-    /// "Open" version of <see cref="BaseManageableMaterialProperty"/>
-    /// where developers can set MaterialPropertyName.
-    /// </summary>
-    public abstract class OpenManageableMaterialProperty : BaseManageableMaterialProperty
-    {
-        public string MaterialPropertyName
-        {
-            get { return _materialPropertyName; }
-            set
-            {
-                if (_materialPropertyName != value)
-                {
-                    _materialPropertyName = value;
-                    //when we change value update our shader id
-                    OnPropertyNameChanged();
-                }
-            }
-        }
-    }
+      public virtual void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block) { return; }
 
-    /// <summary>
-    /// "Sealed" version of <see cref="IManageableProperty"/>
-    /// where MaterialPropertyName is only set via the Constructor.
-    /// Because this is explicitly inlined we don't need to inherit
-    /// <see cref="ScriptableObject"/>.
-    /// </summary>
-    [System.Serializable]
-    public abstract class SealedManageableMaterialProperty : IManageableProperty
-    {
-        public SealedManageableMaterialProperty(string propertyName)
-        {
-            _materialPropertyName = propertyName;
-        }
+      public virtual MaterialPropertyType GetMaterialPropertyType() { return MaterialPropertyType.Color; }
+   }
 
-        public int MaterialPropertyID
-        {
-            get
-            {
-                return Shader.PropertyToID(_materialPropertyName);
-            }
-        }
+   /// <summary>
+   /// Base Class for ManageableMaterialProperties of different Types
+   /// </summary>
+   /// <typeparam name="T"></typeparam>
+   public abstract class ManageableMaterialProperty<T> : OpenManageableMaterialProperty
+   {
+      [SerializeField]
+      [HideInInspector]
+      private T _propertyValue;
+      public T PropertyValue
+      {
+         get { return _propertyValue; }
+         set { _propertyValue = value; }
+      }
+   }
 
-        public int ResetID()
-        {
-            return MaterialPropertyID;
-        }
+   /// <summary>
+   /// Base Class for SealedMaterialProperties of different Types
+   /// </summary>
+   /// <typeparam name="T"></typeparam>
+   public abstract class SealedMaterialProperty<T> : SealedManageableMaterialProperty
+   {
+      public SealedMaterialProperty(string propertyName) : base(propertyName)
+      {
+         _materialPropertyName = propertyName;
+      }
 
-        //for dev facing data use string name
-        [SerializeField]
-        [HideInInspector]
-        protected string _materialPropertyName = "_SomeProperty";
+      [SerializeField]
+      [HideInInspector]
+      private T _propertyValue;
+      public T PropertyValue
+      {
+         get { return _propertyValue; }
+         set { _propertyValue = value; }
+      }
+   }
 
-        public virtual void ApplyPropertyToMaterial(Material m) { return; }
-
-        public virtual void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block) { return; }
-
-        public virtual MaterialPropertyType GetMaterialPropertyType() { return MaterialPropertyType.Color; }
-    }
-
-    /// <summary>
-    /// Base Class for ManageableMaterialProperties of different Types
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public abstract class ManageableMaterialProperty<T> : OpenManageableMaterialProperty
-    {
-        [SerializeField]
-        [HideInInspector]
-        private T _propertyValue;
-        public T PropertyValue
-        {
-            get { return _propertyValue; }
-            set { _propertyValue = value; }
-        }
-    }
-
-    /// <summary>
-    /// Base Class for SealedMaterialProperties of different Types
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public abstract class SealedMaterialProperty<T> : SealedManageableMaterialProperty
-    {
-        public SealedMaterialProperty(string propertyName) : base(propertyName)
-        {
-            _materialPropertyName = propertyName;
-        }
-
-        [SerializeField]
-        [HideInInspector]
-        private T _propertyValue;
-        public T PropertyValue
-        {
-            get { return _propertyValue; }
-            set { _propertyValue = value; }
-        }
-    }
-
-    public enum MaterialPropertyType
-    {
-        Color,
-        HDR,
-        Float,
-        Texture,
-        Vector,
-        Keyword
-    }
+   public enum MaterialPropertyType
+   {
+      Color,
+      HDR,
+      Float,
+      Texture,
+      Vector,
+      Keyword
+   }
 }

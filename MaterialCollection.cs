@@ -53,5 +53,18 @@ namespace DWD.MaterialManager
             temp.OnPropertyNameChanged();
          }
       }
+
+      public BaseManageableMaterialProperty GetManagedPropertyForParam(int id)
+      {
+         int count = managedProperties.Length;
+         for(int a = 0; a < count;a++)
+         {
+            BaseManageableMaterialProperty bmmp = managedProperties[a];
+            if (bmmp.MaterialPropertyID == id)
+               return bmmp;
+         }
+         return null;
+      }
+
    }
 }

@@ -1,6 +1,4 @@
-﻿//© Dicewrench Designs LLC 2019-2023
-//Licensed for use in 'Baseball Bash' App
-//All Rights Reserved
+﻿//© Dicewrench Designs LLC 2019-2024
 //Last Owned by: Allen White (allen@dicewrenchdesigns.com)
 
 using UnityEngine;

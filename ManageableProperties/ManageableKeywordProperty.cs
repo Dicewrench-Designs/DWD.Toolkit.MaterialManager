@@ -1,6 +1,4 @@
-﻿//© Dicewrench Designs LLC 2019-2023
-//Licensed for use in 'Baseball Bash' App
-//All Rights Reserved
+﻿//© Dicewrench Designs LLC 2019-2024
 //Last Owned by: Allen White (allen@dicewrenchdesigns.com)
 
 using UnityEngine;
@@ -16,6 +14,12 @@ namespace DWD.MaterialManager
     //IF YOU WANT THIS TO WORK YOU GOTTA:
     // 1. Set the name of the Property to the name of the toggle property, i.e. "_Emission_Enabled"
     // 2. The Shader KEYWORD must be named the same but ALL CAPS i.e. "_EMISSION_ENABLED"
+
+
+    /// <summary>
+    /// <see cref="ManageableMaterialProperty{T}"/> for <see cref="Shader"/> Keywords.  Has
+    /// some quirks, view code comments to ensure proper use!
+    /// </summary>
 
     public class ManageableKeywordProperty : ManageableMaterialProperty<bool>, IManageableProperty
     {

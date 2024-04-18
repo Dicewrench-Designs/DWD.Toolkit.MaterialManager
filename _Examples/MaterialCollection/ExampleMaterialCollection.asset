@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-7032888989831780913
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a1bfea3b2da8484e831f79e43d8be5d, type: 3}
+  m_Name: ManageableColorProperty
+  m_EditorClassIdentifier: 
+  _materialPropertyName: _Color
+  _propertyValue: {r: 0.6836605, g: 1, b: 0.059748232, a: 0}
+--- !u!114 &-3102772483564940039
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb09899af22727b40a2082e514c374bc, type: 3}
+  m_Name: ManageableFloatProperty
+  m_EditorClassIdentifier: 
+  _materialPropertyName: _Metallic
+  _propertyValue: 1
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d57a598658739b44b9a7756eb89c81b, type: 3}
+  m_Name: ExampleMaterialCollection
+  m_EditorClassIdentifier: 
+  managedProperties:
+  - {fileID: -7032888989831780913}
+  - {fileID: -3102772483564940039}
+  - {fileID: 2783985453879412264}
+  materials:
+  - {fileID: 2100000, guid: def12948c591493468299110948e29a3, type: 2}
+  - {fileID: 2100000, guid: b11de1dd38b1bfa40ab5737ba64e4d6b, type: 2}
+  - {fileID: 2100000, guid: 55969c5a58058ee48b6198e9efa5a867, type: 2}
+--- !u!114 &2783985453879412264
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb09899af22727b40a2082e514c374bc, type: 3}
+  m_Name: ManageableFloatProperty
+  m_EditorClassIdentifier: 
+  _materialPropertyName: _Smoothness
+  _propertyValue: 0

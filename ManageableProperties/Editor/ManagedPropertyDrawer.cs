@@ -25,25 +25,28 @@ namespace DWD.MaterialManager.Editor
             _right = new Rect(_left);
             _right.x += _left.width;
 
-            BaseManageableMaterialProperty bmmp = property.objectReferenceValue as BaseManageableMaterialProperty;
-            SerializedObject actualProp = new SerializedObject(bmmp);
-
-            actualProp.Update();
-
-            EditorGUIUtility.labelWidth = 105.0f;
-            SerializedProperty name = actualProp.FindProperty("_materialPropertyName");
-            EditorGUI.PropertyField(_left, name, true);
-
-            SerializedProperty value = actualProp.FindProperty("_propertyValue");
-            
-            if (bmmp.GetMaterialPropertyType() != MaterialPropertyType.HDR)
-                EditorGUI.PropertyField(_right, value, true);
-            else
+            if (property != null && property.objectReferenceValue != null)
             {
-                value.colorValue = EditorGUI.ColorField(_right, new GUIContent(value.displayName), value.colorValue, true, true, true);
+                BaseManageableMaterialProperty bmmp = property.objectReferenceValue as BaseManageableMaterialProperty;
+                SerializedObject actualProp = new SerializedObject(bmmp);
+
+                actualProp.Update();
+
+                EditorGUIUtility.labelWidth = 105.0f;
+                SerializedProperty name = actualProp.FindProperty("_materialPropertyName");
+                EditorGUI.PropertyField(_left, name, true);
+
+                SerializedProperty value = actualProp.FindProperty("_propertyValue");
+
+                if (bmmp.GetMaterialPropertyType() != MaterialPropertyType.HDR)
+                    EditorGUI.PropertyField(_right, value, true);
+                else
+                {
+                    value.colorValue = EditorGUI.ColorField(_right, new GUIContent(value.displayName), value.colorValue, true, true, true);
+                }
+                EditorGUIUtility.labelWidth = 0.0f;
+                actualProp.ApplyModifiedProperties();
             }
-            EditorGUIUtility.labelWidth = 0.0f;
-            actualProp.ApplyModifiedProperties();
         }
     }
 }

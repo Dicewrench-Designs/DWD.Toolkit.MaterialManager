@@ -61,7 +61,9 @@ namespace DWD.MaterialManager.Editor
 
             if (svcPresent == false)
                EditorGUILayout.HelpBox("Assign a Shader Variant Collection to write to.", MessageType.Warning);
-            EditorGUILayout.PropertyField(svc);
+
+            EditorGUILayout.PropertyField(svc, true);
+            serializedObject.ApplyModifiedProperties();
          }
 
          using (var scrollview = new EditorGUILayout.ScrollViewScope(scroll))

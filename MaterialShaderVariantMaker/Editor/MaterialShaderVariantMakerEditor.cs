@@ -102,9 +102,8 @@ namespace DWD.MaterialManager.Editor
       {
          serializedObject.Update();
 
-         EditorGUILayout.PropertyField(array);
-
-         bool isExpanded = array.isExpanded;
+         bool isExpanded = EditorGUILayout.Foldout(array.isExpanded, new GUIContent(array.displayName, array.tooltip));
+         array.isExpanded = isExpanded;
 
          if(isExpanded)
          {

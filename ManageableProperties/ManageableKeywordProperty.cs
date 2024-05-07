@@ -26,14 +26,14 @@ namespace DWD.MaterialManager
         public override void ApplyPropertyToMaterial(Material m)
         {
             if (m.HasProperty(MaterialPropertyName))
-            {
                 m.SetFloat(MaterialPropertyID, PropertyValue ? 1.0f : 0.0f);
-                if (PropertyValue == true)
-                {
-                    m.EnableKeyword(MaterialPropertyName.ToUpper());
-                }
-                else
-                    m.DisableKeyword(MaterialPropertyName.ToUpper());
+            if (PropertyValue == true)
+            {
+                m.EnableKeyword(MaterialPropertyName.ToUpper());
+            }
+            else
+            { 
+                m.DisableKeyword(MaterialPropertyName.ToUpper());
             }
         }
 

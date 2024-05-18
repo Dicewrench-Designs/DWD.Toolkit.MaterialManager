@@ -116,7 +116,7 @@ namespace DWD.MaterialManager
     {
         [SerializeField]
         [HideInInspector]
-        private T _propertyValue;
+        protected T _propertyValue;
         public T PropertyValue
         {
             get { return _propertyValue; }

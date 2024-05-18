@@ -20,14 +20,14 @@ namespace DWD.MaterialManager
             TryCacheOriginal(m);
             if (m.HasProperty(MaterialPropertyID))
             {
-                m.SetColor(MaterialPropertyID, Color.Lerp(_originalValue, PropertyValue, 1.0f));
+                m.SetColor(MaterialPropertyID, Color.Lerp(_originalValue, PropertyValue, intensity));
             }
         }
 
         public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f)
         {
             TryCacheOriginal(m);
-            block.SetColor(MaterialPropertyID, Color.Lerp(_originalValue, PropertyValue, 1.0f));
+            block.SetColor(MaterialPropertyID, Color.Lerp(_originalValue, PropertyValue, intensity));
         }
 
         public override MaterialPropertyType GetMaterialPropertyType()

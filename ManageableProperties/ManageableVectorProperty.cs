@@ -7,17 +7,28 @@ namespace DWD.MaterialManager
 {
     public class ManageableVectorProperty : ManageableMaterialProperty<Vector4>
     {
-        public override void ApplyPropertyToMaterial(Material m)
+        public override void TryCacheOriginal(Material m)
         {
-            if (m.HasProperty(MaterialPropertyID))
+            if (m.HasProperty(MaterialPropertyName) && _originalCached == false)
             {
-                m.SetVector(MaterialPropertyID, PropertyValue);
+                _originalCached = true;
+                _originalValue = m.GetVector(MaterialPropertyName);
             }
         }
 
-        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block)
+        public override void ApplyPropertyToMaterial(Material m, float intensity = 1.0f)
         {
-            block.SetVector(MaterialPropertyID, PropertyValue);
+            if (m.HasProperty(MaterialPropertyID))
+            {
+                TryCacheOriginal(m);
+                m.SetVector(MaterialPropertyID, Vector4.Lerp(_originalValue, PropertyValue, intensity));
+            }
+        }
+
+        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f)
+        {
+            TryCacheOriginal(m);
+            block.SetVector(MaterialPropertyID, Vector4.Lerp(_originalValue, PropertyValue, intensity));
         }
 
         public override MaterialPropertyType GetMaterialPropertyType()

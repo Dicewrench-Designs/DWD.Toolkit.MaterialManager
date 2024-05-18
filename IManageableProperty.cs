@@ -10,9 +10,10 @@ namespace DWD.MaterialManager
     /// </summary>
     public interface IManageableProperty
     {
-        void ApplyPropertyToMaterial(Material m);
+        void TryCacheOriginal(Material m);
+        void ApplyPropertyToMaterial(Material m, float intensity = 1.0f);
 
-        void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block);
+        void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f);
 
         MaterialPropertyType GetMaterialPropertyType();
     }

@@ -17,14 +17,26 @@ namespace DWD.MaterialManager
 
         public Material[] materials;
 
-        public void ApplyProperty(BaseManageableMaterialProperty prop)
+        public void ApplyProperty(BaseManageableMaterialProperty prop, float intensity = 1.0f)
         {
             if (materials != null)
             {
                 int count = materials.Length;
                 for (int a = 0; a < count; a++)
                 {
-                    prop.ApplyPropertyToMaterial(materials[a]);
+                    prop.ApplyPropertyToMaterial(materials[a], intensity);
+                }
+            }
+        }
+
+        public void ApplyPropertyToBlock(MaterialPropertyBlock block, BaseManageableMaterialProperty prop, float intensity = 1.0f)
+        {
+            if (materials != null)
+            {
+                int count = materials.Length;
+                for (int a = 0; a < count; a++)
+                {
+                    prop.ApplyPropertyToMaterialPropertyBlock(block, materials[a], intensity);
                 }
             }
         }
@@ -32,13 +44,23 @@ namespace DWD.MaterialManager
         /// <summary>
         /// Applys each Property in order.
         /// </summary>
-        public void ApplyAllProperties()
+        public void ApplyAllProperties(float intensity = 1.0f)
         {
             int count = managedProperties.Length;
 
             for (int a = 0; a < count; a++)
             {
-                ApplyProperty(managedProperties[a]);
+                ApplyProperty(managedProperties[a], intensity);
+            }
+        }
+
+        public void ApplyAllPropertiesToBlock(MaterialPropertyBlock block, float intensity = 1.0f)
+        {
+            int count = managedProperties.Length;
+
+            for (int a = 0; a < count; a++)
+            {
+                ApplyPropertyToBlock(block, managedProperties[a], intensity);
             }
         }
 

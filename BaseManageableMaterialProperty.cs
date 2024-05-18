@@ -35,9 +35,11 @@ namespace DWD.MaterialManager
             _materialPropertyID = -1;
         }
 
-        public virtual void ApplyPropertyToMaterial(Material m) { return; }
+        public virtual void TryCacheOriginal(Material m) { }
 
-        public virtual void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block) { return; }
+        public virtual void ApplyPropertyToMaterial(Material m, float intensity = 1.0f) { return; }
+
+        public virtual void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f) { return; }
 
         public virtual MaterialPropertyType GetMaterialPropertyType() { return MaterialPropertyType.Color; }
 
@@ -97,9 +99,11 @@ namespace DWD.MaterialManager
         [HideInInspector]
         protected string _materialPropertyName = "_SomeProperty";
 
-        public virtual void ApplyPropertyToMaterial(Material m) { return; }
+        public virtual void TryCacheOriginal(Material m) { }
 
-        public virtual void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block) { return; }
+        public virtual void ApplyPropertyToMaterial(Material m, float intensity) { return; }
+
+        public virtual void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity) { return; }
 
         public virtual MaterialPropertyType GetMaterialPropertyType() { return MaterialPropertyType.Color; }
     }
@@ -118,6 +122,9 @@ namespace DWD.MaterialManager
             get { return _propertyValue; }
             set { _propertyValue = value; }
         }
+
+        protected bool _originalCached = false;
+        protected T _originalValue;
     }
 
     /// <summary>
@@ -139,6 +146,9 @@ namespace DWD.MaterialManager
             get { return _propertyValue; }
             set { _propertyValue = value; }
         }
+
+        protected bool _originalCached = false;
+        protected T _originalValue;
     }
 
     public enum MaterialPropertyType

@@ -7,17 +7,28 @@ namespace DWD.MaterialManager
 {
     public class ManageableTextureProperty : ManageableMaterialProperty<Texture>, IManageableProperty
     {
-        public override void ApplyPropertyToMaterial(Material m)
+        public override void TryCacheOriginal(Material m)
         {
-            if (m.HasProperty(MaterialPropertyID))
+            if (m.HasProperty(MaterialPropertyName) && _originalCached == false)
             {
-                m.SetTexture(MaterialPropertyID, PropertyValue);
+                _originalCached = true;
+                _originalValue = m.GetTexture(MaterialPropertyName);
             }
         }
 
-        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block)
+        public override void ApplyPropertyToMaterial(Material m, float intensity = 1.0f)
         {
-            block.SetTexture(MaterialPropertyID, PropertyValue);
+            if (m.HasProperty(MaterialPropertyID))
+            {
+                TryCacheOriginal(m);
+                m.SetTexture(MaterialPropertyID, intensity == 1.0f ? PropertyValue : _originalValue);
+            }
+        }
+
+        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f)
+        {
+            TryCacheOriginal(m);
+            block.SetTexture(MaterialPropertyID, intensity == 1.0f ? PropertyValue : _originalValue);
         }
 
         public override MaterialPropertyType GetMaterialPropertyType()

@@ -11,17 +11,19 @@ namespace DWD.MaterialManager
         {
             _materialPropertyName = propertyName;
         }
-        public override void ApplyPropertyToMaterial(Material m)
+        public override void ApplyPropertyToMaterial(Material m, float intensity = 1.0f)
         {
+            TryCacheOriginal(m);
             if (m.HasProperty(MaterialPropertyID))
             {
-                m.SetVector(MaterialPropertyID, PropertyValue);
+                m.SetVector(MaterialPropertyID, Vector4.Lerp(_originalValue, PropertyValue, intensity));
             }
         }
 
-        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block)
+        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f)
         {
-            block.SetVector(MaterialPropertyID, PropertyValue);
+            TryCacheOriginal(m);
+            block.SetVector(MaterialPropertyID, Vector4.Lerp(_originalValue, PropertyValue, intensity));
         }
 
         public override MaterialPropertyType GetMaterialPropertyType()

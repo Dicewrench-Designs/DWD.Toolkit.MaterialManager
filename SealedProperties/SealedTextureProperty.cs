@@ -7,22 +7,33 @@ namespace DWD.MaterialManager
 {
     public class SealedTextureProperty : SealedMaterialProperty<Texture>, IManageableProperty
     {
+        public override void TryCacheOriginal(Material m)
+        {
+            if (m.HasProperty(MaterialPropertyID) && _originalCached == false)
+            {
+                _originalCached = true;
+                _originalValue = m.GetTexture(MaterialPropertyID);
+            }
+        }
+
         public SealedTextureProperty(string propertyName) : base(propertyName)
         {
             _materialPropertyName = propertyName;
         }
 
-        public override void ApplyPropertyToMaterial(Material m)
+        public override void ApplyPropertyToMaterial(Material m, float intensity = 1.0f)
         {
+            TryCacheOriginal(m);
             if (m.HasProperty(MaterialPropertyID))
             {
-                m.SetTexture(MaterialPropertyID, PropertyValue);
+                m.SetTexture(MaterialPropertyID, intensity == 1.0f ? PropertyValue : _originalValue);
             }
         }
 
-        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block)
+        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f)
         {
-            block.SetTexture(MaterialPropertyID, PropertyValue);
+            TryCacheOriginal(m);
+            block.SetTexture(MaterialPropertyID, intensity == 1.0f ? PropertyValue : _originalValue);
         }
 
         public override MaterialPropertyType GetMaterialPropertyType()

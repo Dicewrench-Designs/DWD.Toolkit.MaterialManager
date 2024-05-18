@@ -26,24 +26,40 @@ namespace DWD.MaterialManager
             _materialPropertyName = propertyName;
         }
 
-        public override void ApplyPropertyToMaterial(Material m)
+        public override void TryCacheOriginal(Material m)
         {
+            if (m.HasProperty(_materialPropertyName) && _originalCached == false)
+            {
+                _originalCached = true;
+                _originalValue = m.GetFloat(_materialPropertyName) > 0.0f;
+            }
+        }
+
+        public override void ApplyPropertyToMaterial(Material m, float intensity = 1.0f)
+        {
+            TryCacheOriginal(m);
             if (m.HasProperty(_materialPropertyName))
             {
-                m.SetFloat(MaterialPropertyID, PropertyValue ? 1.0f : 0.0f);
-                if (PropertyValue == true)
-                {
-                    m.EnableKeyword(_materialPropertyName.ToUpper());
-                }
-                else
-                    m.DisableKeyword(_materialPropertyName.ToUpper());
+                float orig = _originalValue ? 1.0f : 0.0f;
+                m.SetFloat(MaterialPropertyID, Mathf.Lerp(orig, PropertyValue ? 1.0f : 0.0f, intensity));
+            }
+            bool value = intensity > 0.0f ? PropertyValue : _originalValue;
+            if (value == true)
+            {
+                m.EnableKeyword(_materialPropertyName.ToUpper());
+            }
+            else
+            {
+                m.DisableKeyword(_materialPropertyName.ToUpper());
             }
         }
 
         //Be careful this won't work on MaterialPropertyBlocks with actual keywords!
-        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block)
+        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f)
         {
-            block.SetFloat(MaterialPropertyID, PropertyValue ? 1.0f : 0.0f);           
+            TryCacheOriginal(m);
+            float orig = _originalValue ? 1.0f : 0.0f;
+            block.SetFloat(MaterialPropertyID, Mathf.Lerp(orig, PropertyValue ? 1.0f : 0.0f, intensity));
         }
 
         public override MaterialPropertyType GetMaterialPropertyType()

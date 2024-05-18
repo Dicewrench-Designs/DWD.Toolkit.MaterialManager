@@ -23,11 +23,25 @@ namespace DWD.MaterialManager
 
     public class ManageableKeywordProperty : ManageableMaterialProperty<bool>, IManageableProperty
     {
-        public override void ApplyPropertyToMaterial(Material m)
+        public override void TryCacheOriginal(Material m)
         {
+            if (m.HasProperty(MaterialPropertyName) && _originalCached == false)
+            {
+                _originalCached = true;
+                _originalValue = m.GetFloat(MaterialPropertyName) > 1.0f;
+            }
+        }
+
+        public override void ApplyPropertyToMaterial(Material m, float intensity = 1.0f)
+        {
+            TryCacheOriginal(m);
             if (m.HasProperty(MaterialPropertyName))
-                m.SetFloat(MaterialPropertyID, PropertyValue ? 1.0f : 0.0f);
-            if (PropertyValue == true)
+            {
+                float orig = _originalValue ? 1.0f : 0.0f;
+                m.SetFloat(MaterialPropertyID, Mathf.Lerp(orig, PropertyValue ? 1.0f : 0.0f, intensity));
+            }
+            bool value = intensity > 0.0f ? PropertyValue : _originalValue;
+            if (value == true)
             {
                 m.EnableKeyword(MaterialPropertyName.ToUpper());
             }
@@ -38,9 +52,11 @@ namespace DWD.MaterialManager
         }
 
         //Be careful this won't actually set keywords on blocks!
-        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block)
+        public override void ApplyPropertyToMaterialPropertyBlock(MaterialPropertyBlock block, Material m, float intensity = 1.0f)
         {
-            block.SetFloat(MaterialPropertyID, PropertyValue ? 1.0f : 0.0f);
+            TryCacheOriginal(m);
+            float orig = _originalValue ? 1.0f : 0.0f;
+            block.SetFloat(MaterialPropertyID, Mathf.Lerp(orig, PropertyValue ? 1.0f : 0.0f, intensity));
         }
 
         public override MaterialPropertyType GetMaterialPropertyType()

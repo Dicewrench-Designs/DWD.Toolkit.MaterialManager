@@ -1,4 +1,4 @@
-//© Dicewrench Designs LLC 2024
+//© Dicewrench Designs LLC 2024-2025
 //Last Owned by: Allen White (allen@dicewrenchdesigns.com)
 
 using UnityEngine;
@@ -14,7 +14,6 @@ namespace DWD.MaterialManager.Editor
         private static string _PROP_INPUT = "_inputTextures";
         private static string _PROP_OUTPUT = "_outputTextures";
         private static string _PROP_PATH = "_outputPath";
-
         public static GUIStyle headerStyle;
 
         private void TryStyles()
@@ -39,7 +38,7 @@ namespace DWD.MaterialManager.Editor
             SerializedProperty output = serializedObject.FindProperty(_PROP_OUTPUT);
             SerializedProperty path = serializedObject.FindProperty(_PROP_PATH);
 
-            using(new EditorGUILayout.VerticalScope(GUI.skin.box)) 
+            using (new EditorGUILayout.VerticalScope(GUI.skin.box))
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
@@ -65,7 +64,7 @@ namespace DWD.MaterialManager.Editor
                     path.stringValue = EditorUtility.SaveFolderPanel("Choose Save Folder", path.stringValue, "");
                 }
                 EditorGUI.BeginDisabledGroup(output.arraySize == 0);
-                if(GUILayout.Button(new GUIContent("Pack", "Output new Textures"), EditorStyles.miniButtonRight, GUILayout.ExpandWidth(true)))
+                if (GUILayout.Button(new GUIContent("Pack", "Output new Textures"), EditorStyles.miniButtonRight, GUILayout.ExpandWidth(true)))
                 {
                     serializedObject.ApplyModifiedProperties();
                     PackTextures(serializedObject.targetObject as TexturePackerConfig);
@@ -75,9 +74,9 @@ namespace DWD.MaterialManager.Editor
 
             EditorGUILayout.Space();
 
-            using(new EditorGUILayout.HorizontalScope())
+            using (new EditorGUILayout.HorizontalScope())
             {
-                using(new EditorGUILayout.VerticalScope(GUI.skin.box))
+                using (new EditorGUILayout.VerticalScope(GUI.skin.box))
                 {
                     EditorGUILayout.LabelField("Texture Inputs", EditorStyles.centeredGreyMiniLabel);
                     EditorGUILayout.Space();
@@ -87,7 +86,7 @@ namespace DWD.MaterialManager.Editor
 
                     EditorGUILayout.Space();
 
-                    if(_messages != null && _messages.Count > 0)
+                    if (_messages != null && _messages.Count > 0)
                     {
                         EditorGUILayout.LabelField("Validation Messages");
                         EditorGUI.indentLevel++;
@@ -111,26 +110,46 @@ namespace DWD.MaterialManager.Editor
             serializedObject.ApplyModifiedProperties();
         }
 
-        private void PackTextures(TexturePackerConfig config)
+        public static void PackTextures(TexturePackerConfig config)
         {
             int inputCount = config.InputTextures.Length;
             int count = config.OutputTextures.Length;
             Debug.Log("Packing " + count + " new Textures to ; " + config.OutputPath);
 
             bool[] readWriteOriginal = new bool[inputCount];
-            for(int a = 0; a < inputCount; a++)
+            List<TextureImporter> importers = new List<TextureImporter>(inputCount);
+            List<string> paths = new List<string>(inputCount);
+
+            List<Color[]> originalPixels = new List<Color[]>();
+
+            // Set textures to readable
+            for (int a = 0; a < inputCount; a++)
             {
                 Texture2D temp = config.InputTextures[a];
                 string path = AssetDatabase.GetAssetPath(temp);
                 TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
                 readWriteOriginal[a] = importer.isReadable;
                 importer.isReadable = true;
-                importer.SaveAndReimport();
+                importers.Add(importer);
+                paths.Add(path);
             }
+            AssetDatabase.ImportAsset(paths[0], ImportAssetOptions.ForceUpdate); // Force update the first asset to trigger reimport
+
             AssetDatabase.Refresh();
 
-            //Loop over the outputs
-            for(int a = 0; a < count; a++)
+            for (int a = 0; a < inputCount; a++)
+            {
+                Texture2D temp = config.InputTextures[a];
+                Color[] pixels = null;
+                if (temp != null)
+                    pixels = temp.GetPixels(0, 0, temp.width, temp.height);
+                else
+                    pixels = new Color[] { Color.black };
+                originalPixels.Add(pixels);
+            }
+
+            // Loop over the outputs
+            for (int a = 0; a < count; a++)
             {
                 TextureOutput output = config.OutputTextures[a];
                 int width = GetInputWidthForOutput(config, output);
@@ -139,16 +158,17 @@ namespace DWD.MaterialManager.Editor
                 int pixelCount = width * height;
                 Color[] pixels = new Color[pixelCount];
 
-                for(int b = 0; b < height; b++)
+                for (int b = 0; b < height; b++)
                 {
-                    for(int c = 0; c < width; c++)
+                    for (int c = 0; c < width; c++)
                     {
-                        float x = GetOutputPixelForChannel(config, output.rChannel, c, b);
-                        float y = GetOutputPixelForChannel(config, output.gChannel, c, b);
-                        float z = GetOutputPixelForChannel(config, output.bChannel, c, b);
-                        float w = GetOutputPixelForChannel(config, output.aChannel, c, b);
-
                         int currentIndex = (b * width) + c;
+
+                        float x = GetOutputPixelForChannel(originalPixels, output.rChannel, c, b, currentIndex);
+                        float y = GetOutputPixelForChannel(originalPixels, output.gChannel, c, b, currentIndex);
+                        float z = GetOutputPixelForChannel(originalPixels, output.bChannel, c, b, currentIndex);
+                        float w = GetOutputPixelForChannel(originalPixels, output.aChannel, c, b, currentIndex);
+
                         pixels[currentIndex] = new Color(x, y, z, w);
                     }
                 }
@@ -160,18 +180,18 @@ namespace DWD.MaterialManager.Editor
                 File.WriteAllBytes(outputPath, outputBytes);
             }
 
+            // Reset textures to original read/write state
             for (int a = 0; a < inputCount; a++)
             {
-                Texture2D temp = config.InputTextures[a];
-                string path = AssetDatabase.GetAssetPath(temp);
-                TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                importer.isReadable = readWriteOriginal[a];
-                importer.SaveAndReimport();
+                importers[a].isReadable = readWriteOriginal[a];
             }
-            AssetDatabase.Refresh();
-        }
+            AssetDatabase.ImportAsset(paths[0], ImportAssetOptions.ForceUpdate); // Force update the first asset to trigger reimport
 
-        private bool TextureOutputUsesIndex(TextureOutput output, int index)
+            AssetDatabase.Refresh();
+
+            originalPixels.Clear();
+        }
+        public static bool TextureOutputUsesIndex(TextureOutput output, int index)
         {
             if ((output.rChannel.enabled && output.rChannel.textureSource == index) ||
                 (output.gChannel.enabled && output.gChannel.textureSource == index) ||
@@ -182,36 +202,36 @@ namespace DWD.MaterialManager.Editor
                 return false;
         }
 
-        private List<Texture2D> GetInputTexturesInUse(TexturePackerConfig config, TextureOutput output)
+        public static List<Texture2D> GetInputTexturesInUse(TexturePackerConfig config, TextureOutput output)
         {
             List<Texture2D> texture2Ds = new List<Texture2D>();
 
             int count = config.InputTextures.Length;
-            for(int a = 0; a < count; a++)
+            for (int a = 0; a < count; a++)
             {
-                if(TextureOutputUsesIndex(output, a))
+                if (TextureOutputUsesIndex(output, a))
                     texture2Ds.Add(config.InputTextures[a]);
             }
 
             return texture2Ds;
         }
 
-        private int GetInputWidthForOutput(TexturePackerConfig config, TextureOutput output)
+        public static int GetInputWidthForOutput(TexturePackerConfig config, TextureOutput output)
         {
             List<Texture2D> texture2Ds = GetInputTexturesInUse(config, output);
             return texture2Ds[0].width;
         }
 
-        private int GetInputHeightForOutput(TexturePackerConfig config, TextureOutput output)
+        public static int GetInputHeightForOutput(TexturePackerConfig config, TextureOutput output)
         {
             List<Texture2D> texture2Ds = GetInputTexturesInUse(config, output);
             return texture2Ds[0].height;
         }
 
-        private float GetOutputPixelForChannel(TexturePackerConfig config, ChannelOutput channel, int x, int y)
+        public static float GetOutputPixelForChannel(List<Color[]> source, ChannelOutput channel, int x, int y, int currIndex)
         {
-            Texture2D source = config.InputTextures[channel.textureSource];
-            Color pixel = source.GetPixel(x, y);
+            Color[] tex = source[channel.textureSource];
+            Color pixel = tex[currIndex];
             if (channel.enabled == false)
                 return 0.0f;
 
@@ -224,7 +244,7 @@ namespace DWD.MaterialManager.Editor
                 case Channel.B:
                     return pixel.b;
                 case Channel.A:
-                    return pixel.a;           
+                    return pixel.a;
             }
             return 0.0f;
         }
@@ -266,7 +286,7 @@ namespace DWD.MaterialManager.Editor
             TextureArrayIsUniformSize(config.InputTextures);
 
             int outputCount = config.OutputTextures.Length;
-            for(int a = 0; a < outputCount; a++)
+            for (int a = 0; a < outputCount; a++)
             {
                 TextureOutputsHaveSameName(config.OutputTextures, a);
             }
@@ -277,10 +297,10 @@ namespace DWD.MaterialManager.Editor
             int x = -1; int y = -1;
 
             int count = array.Length;
-            for(int a = 0; a < count; a++)
+            for (int a = 0; a < count; a++)
             {
                 Texture2D temp = array[a];
-                if(a == 0)
+                if (a == 0)
                 {
                     x = temp.width; y = temp.height;
                 }
@@ -311,6 +331,5 @@ namespace DWD.MaterialManager.Editor
                 }
             }
         }
-
     }
 }

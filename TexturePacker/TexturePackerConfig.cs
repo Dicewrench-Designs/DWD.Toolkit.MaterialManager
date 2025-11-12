@@ -1,7 +1,6 @@
 //© Dicewrench Designs LLC 2024
 //Last Owned by: Allen White (allen@dicewrenchdesigns.com)
 
-using UnityEditor;
 using UnityEngine;
 
 namespace DWD.MaterialManager

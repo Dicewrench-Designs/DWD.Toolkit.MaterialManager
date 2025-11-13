@@ -3,23 +3,26 @@
 
 using UnityEngine;
 using UnityEditor;
+// No coroutines needed
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using UnityEngine.Experimental.Rendering;
+// No coroutines needed
 
 namespace DWD.MaterialManager.Editor
 {
     [CustomEditor(typeof(AbstractTexturePackerConfig))]
     public class AbstractTexturePackerConfigEditor : UnityEditor.Editor
     {
+        private const int _DEFAULT_SIZE = 32;
+
         private static string _PROP_INPUT = "_inputPropertyNames";
         private static string _PROP_OUTPUT = "_outputTextures";
-        // _PROP_PATH has been removed
         public static GUIStyle headerStyle;
 
         private SerializedProperty _input;
         private SerializedProperty _output;
-        // _path has been removed
 
         private List<ValidationMessage> _messages = new List<ValidationMessage>();
 
@@ -39,7 +42,6 @@ namespace DWD.MaterialManager.Editor
         {
             _input = serializedObject.FindProperty(_PROP_INPUT);
             _output = serializedObject.FindProperty(_PROP_OUTPUT);
-            // _path is removed
             OnValidate();
         }
 
@@ -62,6 +64,10 @@ namespace DWD.MaterialManager.Editor
 
             EditorGUILayout.Space();
 
+            EditorGUILayout.HelpBox("Use the Abstract Texture Packer in conjunction with the Material Converter to dynamically pack many Textures based on Materials' existing assignments.", MessageType.Info);
+
+            EditorGUILayout.Space();
+
             // Output path selection GUI has been removed.
 
             using (new EditorGUILayout.VerticalScope(GUI.skin.box))
@@ -76,6 +82,8 @@ namespace DWD.MaterialManager.Editor
             using (new EditorGUILayout.VerticalScope(GUI.skin.box))
             {
                 EditorGUILayout.LabelField("Texture Outputs", EditorStyles.centeredGreyMiniLabel);
+                EditorGUILayout.Space();
+                EditorGUILayout.HelpBox("Output Suffix should match target Texture Property name in new Shader.", MessageType.Info);
                 EditorGUILayout.Space();
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(_output, true);
@@ -173,97 +181,113 @@ namespace DWD.MaterialManager.Editor
 
         /// <summary>
         /// This is the core packing function. It dynamically builds the input texture list
-        /// from the material and packs a single output texture.
+        /// from the material, packs a single output texture, saves it, and imports it.
         /// </summary>
         /// <param name="config">The template to use.</param>
         /// <param name="outputToPack">The specific output definition to build.</param>
-        /// <param name="sourceMaterial">The material to read textures from.</param>
+        /// <param name="sourceMaterial">The material to read textures from (this will be the in-memory copy).</param>
         /// <param name="newAssetName">The base name for the new texture file (e.g., the material name).</param>
-        /// <returns>The newly created and imported Texture2D asset.</returns>
-        public static Texture2D PackFromMaterial(AbstractTexturePackerConfig config, TextureOutput outputToPack, Material sourceMaterial, string newAssetName)
+        /// <param name="outputDirectory">The valid asset directory path to save the new texture in.</param>
+        /// <returns>The asset path of the newly created texture, or null on failure.</returns>
+        public static string PackAndImport(
+            AbstractTexturePackerConfig config,
+            TextureOutput outputToPack,
+            Material sourceMaterial, // This is the in-memory _workingMaterial
+            string newAssetName,
+            string outputDirectory)
         {
             int inputCount = config.InputPropertyNames.Length;
             List<Texture2D> inputTextures = new List<Texture2D>(inputCount);
             List<string> paths = new List<string>(inputCount);
-            List<TextureImporter> importers = new List<TextureImporter>(inputCount);
-            bool[] readWriteOriginal = new bool[inputCount];
-
             List<Color[]> originalPixels = new List<Color[]>();
 
-            // 1. Build dynamic Input Texture list and set to readable
+            // 1. Build dynamic Input Texture list and store paths.
             for (int i = 0; i < inputCount; i++)
             {
                 string propName = config.InputPropertyNames[i];
-                Texture2D temp = sourceMaterial.GetTexture(propName) as Texture2D;
+                // *** Read from the in-memory material ***
+                Texture2D temp = string.IsNullOrEmpty(propName) ? null : sourceMaterial.GetTexture(propName) as Texture2D;
                 inputTextures.Add(temp); // Add even if null, so indices match
 
                 if (temp != null)
-                {
-                    string path = AssetDatabase.GetAssetPath(temp);
-                    TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-
-                    if (importer != null)
-                    {
-                        readWriteOriginal[i] = importer.isReadable;
-                        importer.isReadable = true;
-                        importers.Add(importer);
-                        paths.Add(path);
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"Could not find TextureImporter for {temp.name} at {path}. Packing may fail if it's not readable.", temp);
-                        readWriteOriginal[i] = true; // Assume readable if no importer
-                        importers.Add(null);
-                        paths.Add(path); // Still add the path for directory finding
-                    }
-                }
+                    paths.Add(AssetDatabase.GetAssetPath(temp)); // Path is still needed for readability check
                 else
-                {
-                    // Add placeholders for null textures
-                    readWriteOriginal[i] = true;
-                    importers.Add(null);
                     paths.Add(null);
-                }
-            }
-
-            // Force reimport if we changed any settings
-            // Find first valid importer to force update
-            string firstValidImporterPath = paths.FirstOrDefault(p => !string.IsNullOrEmpty(p));
-            if (!string.IsNullOrEmpty(firstValidImporterPath))
-            {
-                AssetDatabase.ImportAsset(firstValidImporterPath, ImportAssetOptions.ForceUpdate);
-                AssetDatabase.Refresh();
-            }
-
-            // ** NEW: Determine output path dynamically **
-            string firstValidPath = paths.FirstOrDefault(p => !string.IsNullOrEmpty(p));
-            string outputDirectory;
-            if (!string.IsNullOrEmpty(firstValidPath))
-            {
-                outputDirectory = Path.GetDirectoryName(firstValidPath);
-            }
-            else
-            {
-                outputDirectory = "Assets/"; // Fallback if no input textures
-                Debug.LogWarning($"No input textures found for packing '{newAssetName}'. Defaulting to 'Assets/' folder.");
             }
 
             // 2. Get Pixels from all input textures
-            int firstValidWidth = 512; // Default fallback
-            int firstValidHeight = 512;
+            int firstValidWidth = _DEFAULT_SIZE;
+            int firstValidHeight = _DEFAULT_SIZE;
+
+            (int width, int height) = GetInputDimensions(inputTextures, outputToPack);
+            firstValidWidth = width;
+            firstValidHeight = height;
 
             for (int i = 0; i < inputCount; i++)
             {
                 Texture2D temp = inputTextures[i];
-                Color[] pixels;
+                Color[] pixels; // This is the final, correctly-sized pixel array
+                Color[] sourcePixels; // This is the pixel array from the source file
+                int sourceWidth, sourceHeight;
+
                 if (temp != null)
                 {
-                    if (firstValidWidth == 512) // Find first valid texture to set dimensions
+                    TextureImporter ti = AssetImporter.GetAtPath(paths[i]) as TextureImporter;
+
+                    sourceWidth = temp.width;
+                    sourceHeight = temp.height;
+
+                    try
                     {
-                        firstValidWidth = temp.width;
-                        firstValidHeight = temp.height;
+                        // Try the fast path first.
+                        sourcePixels = temp.GetPixels(0, 0, temp.width, temp.height);
                     }
-                    pixels = temp.GetPixels(0, 0, temp.width, temp.height);
+                    catch (System.Exception e)
+                    {
+                        if (e.Message.Contains("not readable"))
+                        {
+                            string path = paths[i];
+                            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                            {
+                                Debug.LogError($"Cannot read pixels for non-readable texture '{temp.name}' because its path is unknown or invalid: {path}", temp);
+                                sourcePixels = Enumerable.Repeat(Color.black, firstValidWidth * firstValidHeight).ToArray();
+                                sourceWidth = firstValidWidth;
+                                sourceHeight = firstValidHeight;
+                            }
+                            else
+                            {
+                                // Read the raw file bytes (e.g., the PNG/JPG data)
+                                byte[] fileData = File.ReadAllBytes(path);
+                                // Create a new, temporary texture
+                                Texture2D readableCopy = new Texture2D(2, 2, temp.format, temp.mipmapCount > 1);
+                                // LoadImage makes it readable and resizes it to the file's dimensions
+                                ImageConversion.LoadImage(readableCopy, fileData, false);
+                                // Now get the pixels from the copy
+                                sourcePixels = readableCopy.GetPixels(0, 0, readableCopy.width, readableCopy.height);
+                                // Clean up the temporary texture
+                                DestroyImmediate(readableCopy);
+                            }
+                        }
+                        else
+                        {
+                            // Some other error (e.g., corrupted texture)
+                            Debug.LogError($"Failed to GetPixels for '{temp.name}'. Error: {e.Message}", temp);
+                            sourcePixels = Enumerable.Repeat(Color.black, firstValidWidth * firstValidHeight).ToArray();
+                            sourceWidth = firstValidWidth;
+                            sourceHeight = firstValidHeight;
+                        }
+                    }
+
+                    // Now that we have sourcePixels, check if we need to rescale
+                    if (sourceWidth != firstValidWidth || sourceHeight != firstValidHeight)
+                    {
+                        Debug.LogWarning($"Texture '{temp.name}' ({sourceWidth}x{sourceHeight}) does not match first input texture size ({firstValidWidth}x{firstValidHeight}). It will be rescaled (point-sampled).", temp);
+                        pixels = GetRescaledPixels(sourcePixels, sourceWidth, sourceHeight, firstValidWidth, firstValidHeight);
+                    }
+                    else
+                    {
+                        pixels = sourcePixels; // No rescale needed
+                    }
                 }
                 else
                 {
@@ -273,67 +297,95 @@ namespace DWD.MaterialManager.Editor
                 originalPixels.Add(pixels);
             }
 
-            // 3. Pack the new texture
-            (int width, int height) = GetInputDimensions(inputTextures, outputToPack);
-            Texture2D newOutput = new Texture2D(width, height);
-            int pixelCount = width * height;
+            // Pack the new texture
+            Texture2D newOutput = new Texture2D(firstValidWidth, firstValidHeight, UnityEngine.Experimental.Rendering.DefaultFormat.LDR, TextureCreationFlags.None);
+            int pixelCount = firstValidWidth * firstValidHeight;
             Color[] newPixels = new Color[pixelCount];
 
-            for (int y = 0; y < height; y++)
+            for (int i = 0; i < pixelCount; i++)
             {
-                for (int x = 0; x < width; x++)
-                {
-                    int currentIndex = (y * width) + x;
+                float r = GetOutputPixelForChannel(originalPixels, outputToPack.rChannel, i);
+                float g = GetOutputPixelForChannel(originalPixels, outputToPack.gChannel, i);
+                float b = GetOutputPixelForChannel(originalPixels, outputToPack.bChannel, i);
+                float a = GetOutputPixelForChannel(originalPixels, outputToPack.aChannel, i);
 
-                    // Handle texture scaling if necessary (simple point sampling)
-                    int sourceX = (int)((float)x / width * width);
-                    int sourceY = (int)((float)y / height * height);
-                    int sourceIndex = (sourceY * width) + sourceX;
-
-                    float r = GetOutputPixelForChannel(originalPixels, outputToPack.rChannel, sourceIndex);
-                    float g = GetOutputPixelForChannel(originalPixels, outputToPack.gChannel, sourceIndex);
-                    float b = GetOutputPixelForChannel(originalPixels, outputToPack.bChannel, sourceIndex);
-                    float a = GetOutputPixelForChannel(originalPixels, outputToPack.aChannel, sourceIndex);
-
-                    newPixels[currentIndex] = new Color(r, g, b, a);
-                }
+                newPixels[i] = new Color(r, g, b, a);
             }
 
             newOutput.SetPixels(newPixels);
             newOutput.Apply();
             byte[] outputBytes = newOutput.EncodeToPNG();
 
-            // Ensure directory exists
             if (!Directory.Exists(outputDirectory))
-            {
                 Directory.CreateDirectory(outputDirectory);
-            }
 
-            string fullOutputPath = Path.Combine(outputDirectory, newAssetName + outputToPack.outputSuffix + ".png");
-            File.WriteAllBytes(fullOutputPath, outputBytes);
+            string fullOutputPath = outputDirectory + Path.DirectorySeparatorChar + newAssetName + ".png";
 
-            // 4. Reset textures to original read/write state
-            for (int i = 0; i < inputCount; i++)
+            try
             {
-                if (importers[i] != null)
-                {
-                    importers[i].isReadable = readWriteOriginal[i];
-                }
+                string fullSystemPath = Path.GetFullPath(fullOutputPath);
+                File.WriteAllBytes(fullSystemPath, outputBytes);
             }
-
-            if (!string.IsNullOrEmpty(firstValidImporterPath))
+            catch (System.Exception e)
             {
-                AssetDatabase.ImportAsset(firstValidImporterPath, ImportAssetOptions.ForceUpdate);
+                Debug.LogError($"Failed to write packed texture to disk at {fullOutputPath}. Error: {e.Message}");
+                return null;
             }
 
-            // 5. Import and return the new asset
-            AssetDatabase.Refresh();
-            Texture2D loadedTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(fullOutputPath);
+            // Import the new asset. The AssetPostprocessor will pick it up from here.
+            // We can remove ForceSynchronousImport as it's no longer needed.
+            AssetDatabase.ImportAsset(fullOutputPath, ImportAssetOptions.ForceUpdate);
+
+            // *** MODIFIED: No waiting. Just return the path. ***
+            return fullOutputPath;
+        }
+
+        private static Texture2D GetTextureAtPath(string path)
+        {
+            Texture2D loadedTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
             if (loadedTexture == null)
             {
-                Debug.LogError($"Failed to save or load packed texture at {fullOutputPath}");
+                loadedTexture = AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D)) as Texture2D;
+                if (loadedTexture == null)
+                {
+                    var objs = AssetDatabase.LoadAllAssetsAtPath(path);
+                    if (objs != null && objs.Length > 0)
+                    {
+                        int count = objs.Length;
+                        for (int a = 0; a < count; a++)
+                        {
+                            var temp = objs[a];
+                            if (temp != null && temp is Texture2D)
+                            {
+                                loadedTexture = temp as Texture2D;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
             return loadedTexture;
+        }
+
+        /// <summary>
+        /// Gets rescaled pixels from a source pixel array using point sampling.
+        /// </summary>
+        private static Color[] GetRescaledPixels(Color[] source, int sourceWidth, int sourceHeight, int targetWidth, int targetHeight)
+        {
+            Color[] targetPixels = new Color[targetWidth * targetHeight];
+            float xScale = (float)sourceWidth / targetWidth;
+            float yScale = (float)sourceHeight / targetHeight;
+
+            for (int y = 0; y < targetHeight; y++)
+            {
+                for (int x = 0; x < targetWidth; x++)
+                {
+                    int sourceX = Mathf.FloorToInt(x * xScale);
+                    int sourceY = Mathf.FloorToInt(y * yScale);
+                    targetPixels[y * targetWidth + x] = source[sourceY * sourceWidth + sourceX];
+                }
+            }
+            return targetPixels;
         }
 
         private static (int width, int height) GetInputDimensions(List<Texture2D> textures, TextureOutput output)
@@ -355,7 +407,7 @@ namespace DWD.MaterialManager.Editor
             }
 
             // Absolute fallback
-            return (32, 32);
+            return (_DEFAULT_SIZE, _DEFAULT_SIZE);
         }
 
         private static float GetOutputPixelForChannel(List<Color[]> source, ChannelOutput channel, int currIndex)
@@ -365,9 +417,7 @@ namespace DWD.MaterialManager.Editor
 
             Color[] tex = source[channel.textureSource];
             if (currIndex >= tex.Length) // Handle size mismatch
-            {
                 currIndex = tex.Length - 1;
-            }
 
             Color pixel = tex[currIndex];
 

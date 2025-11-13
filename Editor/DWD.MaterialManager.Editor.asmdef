@@ -2,7 +2,8 @@
     "name": "DWD.MaterialManager.Editor",
     "rootNamespace": "",
     "references": [
-        "GUID:535c2103ec3261c47b7e8f9596fce5e0"
+        "GUID:535c2103ec3261c47b7e8f9596fce5e0",
+        "GUID:478a2357cc57436488a56e564b08d223"
     ],
     "includePlatforms": [
         "Editor"

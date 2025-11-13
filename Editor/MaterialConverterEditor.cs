@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using System.Linq;
 using System.Collections.Generic;
+using System.IO; // Required for Path
 using UnityEditorInternal; // Required for ReorderableList
 
 namespace DWD.MaterialManager.Editor
@@ -300,7 +301,8 @@ namespace DWD.MaterialManager.Editor
 
             int convertedCount = Convert(selectedAssets);
 
-            Debug.Log($"Successfully converted {convertedCount} of {selectedAssets.Length} selected materials.");
+            Debug.Log($"Successfully converted {convertedCount} of {selectedAssets.Length} selected materials. " +
+                $"Pending texture assignments will be processed by the AssetPostprocessor.");
         }
 
         /// <summary>
@@ -331,27 +333,38 @@ namespace DWD.MaterialManager.Editor
 
             int convertedCount = Convert(allParts.ToArray());
 
-            Debug.Log($"Successfully converted {convertedCount} of {allParts.Count} found materials.");
+            Debug.Log($"Successfully converted {convertedCount} of {allParts.Count} found materials. " +
+                $"Pending texture assignments will be processed by the AssetPostprocessor.");
         }
 
         private int Convert(Object[] objects)
         {
             Undo.RecordObjects(objects, "Convert Materials");
 
-            // Create a cache for *this conversion batch* to avoid re-packing
-            // the same texture output multiple times if it's shared
-            // (e.g., one Packer config makes 2 textures, _MaskMap and _DetailMap).
-            // Key = config.name + output.outputSuffix, Value = packed Texture
-            var processedTextureCache = new Dictionary<string, Texture2D>();
+            // *** NEW: Clear the cache for this new batch ***
+            MaterialConversionProcessorCache.ClearPendingAssignments();
+
+            // *** MODIFIED: Cache now stores asset paths (string) instead of Texture2D ***
+            var processedTextureCache = new Dictionary<string, string>();
             int convertedCount = 0;
+
+            // *** NEW: Progress Bar ***
+            string progressBarTitle = "Material Conversion";
+            EditorUtility.DisplayProgressBar(progressBarTitle, "Starting conversion...", 0f);
 
             AssetDatabase.StartAssetEditing(); // Performance boost
             try
             {
-                foreach (Object obj in objects)
+                for (int i = 0; i < objects.Length; i++)
                 {
+                    Object obj = objects[i];
                     Material mat = obj as Material;
                     if (mat == null) continue;
+
+                    // *** NEW: Update progress bar ***
+                    float progress = (float)i / objects.Length;
+                    string info = $"Processing: {mat.name} ({i + 1}/{objects.Length})";
+                    EditorUtility.DisplayProgressBar(progressBarTitle, info, progress);
 
                     if (ConvertMaterial(mat, processedTextureCache) != null)
                     {
@@ -362,9 +375,10 @@ namespace DWD.MaterialManager.Editor
             }
             finally
             {
+                EditorUtility.DisplayProgressBar(progressBarTitle, "Finalizing...", 1f);
                 AssetDatabase.StopAssetEditing(); // Stop editing and save changes
-                AssetDatabase.SaveAssets();
-                AssetDatabase.Refresh();
+                // No SaveAssets() or Refresh() needed here, the Postprocessor will handle it.
+                EditorUtility.ClearProgressBar();
             }
             return convertedCount;
         }
@@ -376,7 +390,7 @@ namespace DWD.MaterialManager.Editor
         /// </summary>
         /// <param name="sourceMaterial">The material to convert.</param>
         /// <returns>The modified sourceMaterial, or null if the shader was incorrect.</returns>
-        public Material ConvertMaterial(Material sourceMaterial, Dictionary<string, Texture2D> processedTextureCache)
+        public Material ConvertMaterial(Material sourceMaterial, Dictionary<string, string> processedTextureCache)
         {
             // _target is the MaterialConverter ScriptableObject
             if (sourceMaterial == null)
@@ -437,38 +451,57 @@ namespace DWD.MaterialManager.Editor
                             if (outputToPack != null)
                             {
                                 string cacheKey = prop.packerConfig.GetInstanceID() + outputToPack.outputSuffix;
+                                string newAssetPath;
 
-                                if (processedTextureCache.TryGetValue(cacheKey, out Texture2D packedTexture))
+                                if (processedTextureCache.TryGetValue(cacheKey, out newAssetPath))
                                 {
-                                    // 1. Use cached texture if available
-                                    sourceMaterial.SetTexture(prop.destinationName, packedTexture);
+                                    // 1. Use cached asset path if available
+                                    //    We still add it to the pending list for *this* material
                                 }
                                 else
                                 {
-                                    // 2. Pack new texture
-                                    Texture2D newTexture = AbstractTexturePackerConfigEditor.PackFromMaterial(
+                                    // 2. Pack new texture and get its path
+
+                                    // Get the output path from the ORIGINAL material asset
+                                    string assetPath = AssetDatabase.GetAssetPath(sourceMaterial);
+                                    string outputDirectory = string.IsNullOrEmpty(assetPath) ? "Assets" : Path.GetDirectoryName(assetPath);
+                                    if (string.IsNullOrEmpty(outputDirectory))
+                                    {
+                                        outputDirectory = "Assets"; // Fallback
+                                        Debug.LogWarning($"Could not find asset path for {sourceMaterial.name}. Packed texture will be saved to Assets folder.", sourceMaterial);
+                                    }
+
+                                    // *** MODIFIED: Call new synchronous method ***
+                                    newAssetPath = AbstractTexturePackerConfigEditor.PackAndImport(
                                         prop.packerConfig,
                                         outputToPack,
-                                        sourceMaterial,
-                                        sourceMaterial.name + "_" + prop.destinationName + "_packed"
+                                        _workingMaterial, // Read from the in-memory copy
+                                        sourceMaterial.name + "_" + prop.destinationName + "_packed",
+                                        outputDirectory
                                     );
 
-                                    if (newTexture != null)
-                                    {
-                                        sourceMaterial.SetTexture(prop.destinationName, newTexture);
-                                        processedTextureCache[cacheKey] = newTexture; // Add to cache
-                                    }
-                                    else
-                                    {
-                                        Debug.LogError($"Packing failed for {sourceMaterial.name} -> {prop.destinationName}");
-                                    }
+                                    // Add to cache for next materials in *this* batch
+                                    processedTextureCache[cacheKey] = newAssetPath;
+                                }
+
+                                // *** NEW: Register this assignment with the post-processor ***
+                                if (!string.IsNullOrEmpty(newAssetPath))
+                                {
+                                    MaterialConversionProcessorCache.AddPendingAssignment(
+                                        newAssetPath,
+                                        sourceMaterial,
+                                        prop.destinationName);
+                                }
+                                else
+                                {
+                                    Debug.LogError($"Packing failed for {sourceMaterial.name} -> {prop.destinationName}");
                                 }
                             }
                             else
                             {
                                 Debug.LogWarning($"MaterialConverter lists {prop.destinationName} as using a packer, " +
-                                                 $"but no output in '{prop.packerConfig.name}' matches that destination name (suffix). " +
-                                                 $"Falling back to 1-to-1 copy.", sourceMaterial);
+                                                   $"but no output in '{prop.packerConfig.name}' matches that destination name (suffix). " +
+                                                   $"Falling back to 1-to-1 copy.", sourceMaterial);
                                 // Fallback to 1-to-1 copy
                                 sourceMaterial.SetTexture(prop.destinationName, _workingMaterial.GetTexture(prop.propertyName));
                             }
@@ -490,7 +523,7 @@ namespace DWD.MaterialManager.Editor
         private string[] GetPropertyDisplayNames(bool isSource, ShaderPropertyType type)
         {
             var cache = isSource ? _sourceShaderProperties : _destShaderProperties;
-            if (type == ShaderPropertyType.Range || type == ShaderPropertyType.Int) 
+            if (type == ShaderPropertyType.Range || type == ShaderPropertyType.Int)
                 type = ShaderPropertyType.Float;
 
             if (cache.TryGetValue(type, out var data))
@@ -509,7 +542,7 @@ namespace DWD.MaterialManager.Editor
         private string[] GetPropertyInternalNames(bool isSource, ShaderPropertyType type)
         {
             var cache = isSource ? _sourceShaderProperties : _destShaderProperties;
-            if (type == ShaderPropertyType.Range || type == ShaderPropertyType.Int) 
+            if (type == ShaderPropertyType.Range || type == ShaderPropertyType.Int)
                 type = ShaderPropertyType.Float;
 
             if (cache.TryGetValue(type, out var data))
@@ -543,11 +576,11 @@ namespace DWD.MaterialManager.Editor
             {
                 EditorGUILayout.LabelField("Convert Controls", EditorStyles.centeredGreyMiniLabel);
 
-                bool ready = _sourceShaderProp.objectReferenceValue != null && 
+                bool ready = _sourceShaderProp.objectReferenceValue != null &&
                     _destinationShaderProp.objectReferenceValue != null;
 
                 EditorGUI.BeginDisabledGroup(!ready);
-                if(GUILayout.Button(new GUIContent("Convert All in Project", "Find all Materials in the Project using " + _sourceShaderProp.objectReferenceValue.name + " and Convert them.")))
+                if (GUILayout.Button(new GUIContent("Convert All in Project", "Find all Materials in the Project using " + _sourceShaderProp.objectReferenceValue.name + " and Convert them.")))
                 {
                     ScrapeAndConvertMaterials();
                 }

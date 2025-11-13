@@ -341,14 +341,11 @@ namespace DWD.MaterialManager.Editor
         {
             Undo.RecordObjects(objects, "Convert Materials");
 
-            // *** NEW: Clear the cache for this new batch ***
             MaterialConversionProcessorCache.ClearPendingAssignments();
 
-            // *** MODIFIED: Cache now stores asset paths (string) instead of Texture2D ***
             var processedTextureCache = new Dictionary<string, string>();
             int convertedCount = 0;
 
-            // *** NEW: Progress Bar ***
             string progressBarTitle = "Material Conversion";
             EditorUtility.DisplayProgressBar(progressBarTitle, "Starting conversion...", 0f);
 
@@ -361,7 +358,6 @@ namespace DWD.MaterialManager.Editor
                     Material mat = obj as Material;
                     if (mat == null) continue;
 
-                    // *** NEW: Update progress bar ***
                     float progress = (float)i / objects.Length;
                     string info = $"Processing: {mat.name} ({i + 1}/{objects.Length})";
                     EditorUtility.DisplayProgressBar(progressBarTitle, info, progress);
@@ -461,7 +457,6 @@ namespace DWD.MaterialManager.Editor
                                 else
                                 {
                                     // 2. Pack new texture and get its path
-
                                     // Get the output path from the ORIGINAL material asset
                                     string assetPath = AssetDatabase.GetAssetPath(sourceMaterial);
                                     string outputDirectory = string.IsNullOrEmpty(assetPath) ? "Assets" : Path.GetDirectoryName(assetPath);
@@ -471,7 +466,6 @@ namespace DWD.MaterialManager.Editor
                                         Debug.LogWarning($"Could not find asset path for {sourceMaterial.name}. Packed texture will be saved to Assets folder.", sourceMaterial);
                                     }
 
-                                    // *** MODIFIED: Call new synchronous method ***
                                     newAssetPath = AbstractTexturePackerConfigEditor.PackAndImport(
                                         prop.packerConfig,
                                         outputToPack,
@@ -484,7 +478,6 @@ namespace DWD.MaterialManager.Editor
                                     processedTextureCache[cacheKey] = newAssetPath;
                                 }
 
-                                // *** NEW: Register this assignment with the post-processor ***
                                 if (!string.IsNullOrEmpty(newAssetPath))
                                 {
                                     MaterialConversionProcessorCache.AddPendingAssignment(
@@ -502,13 +495,11 @@ namespace DWD.MaterialManager.Editor
                                 Debug.LogWarning($"MaterialConverter lists {prop.destinationName} as using a packer, " +
                                                    $"but no output in '{prop.packerConfig.name}' matches that destination name (suffix). " +
                                                    $"Falling back to 1-to-1 copy.", sourceMaterial);
-                                // Fallback to 1-to-1 copy
                                 sourceMaterial.SetTexture(prop.destinationName, _workingMaterial.GetTexture(prop.propertyName));
                             }
                         }
                         else
                         {
-                            // Simple 1-to-1 texture copy
                             sourceMaterial.SetTexture(prop.destinationName, _workingMaterial.GetTexture(prop.propertyName));
                         }
                         break;

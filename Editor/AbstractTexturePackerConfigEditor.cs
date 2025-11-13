@@ -3,12 +3,10 @@
 
 using UnityEngine;
 using UnityEditor;
-// No coroutines needed
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine.Experimental.Rendering;
-// No coroutines needed
 
 namespace DWD.MaterialManager.Editor
 {
@@ -335,36 +333,7 @@ namespace DWD.MaterialManager.Editor
             // Import the new asset. The AssetPostprocessor will pick it up from here.
             // We can remove ForceSynchronousImport as it's no longer needed.
             AssetDatabase.ImportAsset(fullOutputPath, ImportAssetOptions.ForceUpdate);
-
-            // *** MODIFIED: No waiting. Just return the path. ***
             return fullOutputPath;
-        }
-
-        private static Texture2D GetTextureAtPath(string path)
-        {
-            Texture2D loadedTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            if (loadedTexture == null)
-            {
-                loadedTexture = AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D)) as Texture2D;
-                if (loadedTexture == null)
-                {
-                    var objs = AssetDatabase.LoadAllAssetsAtPath(path);
-                    if (objs != null && objs.Length > 0)
-                    {
-                        int count = objs.Length;
-                        for (int a = 0; a < count; a++)
-                        {
-                            var temp = objs[a];
-                            if (temp != null && temp is Texture2D)
-                            {
-                                loadedTexture = temp as Texture2D;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            return loadedTexture;
         }
 
         /// <summary>

@@ -257,7 +257,7 @@ namespace DWD.MaterialManager.Editor
                                 // Read the raw file bytes (e.g., the PNG/JPG data)
                                 byte[] fileData = File.ReadAllBytes(path);
                                 // Create a new, temporary texture
-                                Texture2D readableCopy = new Texture2D(2, 2, temp.format, temp.mipmapCount > 1);
+                                Texture2D readableCopy = new Texture2D(32, 32, temp.format, temp.mipmapCount > 1);
                                 // LoadImage makes it readable and resizes it to the file's dimensions
                                 ImageConversion.LoadImage(readableCopy, fileData, false);
                                 // Now get the pixels from the copy

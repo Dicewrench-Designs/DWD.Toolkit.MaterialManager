@@ -567,8 +567,14 @@ namespace DWD.MaterialManager.Editor
             {
                 EditorGUILayout.LabelField("Convert Controls", EditorStyles.centeredGreyMiniLabel);
 
-                bool ready = _sourceShaderProp.objectReferenceValue != null &&
-                    _destinationShaderProp.objectReferenceValue != null;
+                bool ready = _sourceShaderProp?.objectReferenceValue != null &&
+                    _destinationShaderProp?.objectReferenceValue != null;
+
+                if(!ready)
+                {
+                    EditorGUILayout.HelpBox("Assign Source and Destination shaders to Convert!", MessageType.Warning);
+                    return;
+                }
 
                 EditorGUI.BeginDisabledGroup(!ready);
                 if (GUILayout.Button(new GUIContent("Convert All in Project", "Find all Materials in the Project using " + _sourceShaderProp.objectReferenceValue.name + " and Convert them.")))

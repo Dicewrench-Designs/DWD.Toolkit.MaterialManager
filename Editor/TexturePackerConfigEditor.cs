@@ -130,6 +130,7 @@ namespace DWD.MaterialManager.Editor
                 TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
                 readWriteOriginal[a] = importer.isReadable;
                 importer.isReadable = true;
+                importer.SaveAndReimport();
                 importers.Add(importer);
                 paths.Add(path);
             }

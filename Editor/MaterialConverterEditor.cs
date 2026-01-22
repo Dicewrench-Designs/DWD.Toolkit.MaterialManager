@@ -131,7 +131,7 @@ namespace DWD.MaterialManager.Editor
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.LabelField("Texture Packer Config", EditorStyles.centeredGreyMiniLabel);
+                    EditorGUILayout.LabelField("Material Converter Config", EditorStyles.centeredGreyMiniLabel);
                 }
                 using (new EditorGUILayout.HorizontalScope())
                 {

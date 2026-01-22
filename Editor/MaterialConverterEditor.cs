@@ -223,6 +223,14 @@ namespace DWD.MaterialManager.Editor
 
             using (new EditorGUILayout.HorizontalScope())
             {
+                //disable if we have a packer assigned
+                EditorGUI.BeginDisabledGroup(packerProp.objectReferenceValue != null);
+
+                //clear the field if we assigned a packer
+                if(packerProp.objectReferenceValue != null &&
+                    !string.IsNullOrEmpty(nameProp.stringValue))
+                    nameProp.stringValue = string.Empty;
+
                 // Draw Source Property Dropdown
                 EditorGUI.BeginChangeCheck();
                 int newSourceIndex = EditorGUI.Popup(leftRect, sourceIndex, sourceDisplayNames);
@@ -230,6 +238,8 @@ namespace DWD.MaterialManager.Editor
                 {
                     nameProp.stringValue = sourceInternalNames[newSourceIndex];
                 }
+
+                EditorGUI.EndDisabledGroup();
 
                 // Draw Destination Property Dropdown
                 EditorGUI.BeginChangeCheck();
